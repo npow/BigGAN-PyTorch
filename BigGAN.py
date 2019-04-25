@@ -427,7 +427,6 @@ class G_D(nn.Module):
         G_z = G_z.half()
     # Split_D means to run D once with real data and once with fake,
     # rather than concatenating along the batch dimension.
-    assert(split_D)
     if split_D:
       D_fake, fake_hid = self.D(G_z, gy, return_hid=True)
       if x is not None:
