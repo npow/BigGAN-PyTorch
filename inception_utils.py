@@ -197,6 +197,18 @@ def numpy_calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
   return out
 
 
+def isfinite(x):
+  """
+    Quick pytorch test that there are no nan's or infs.
+
+    note: torch now has torch.isnan
+    url: https://gist.github.com/wassname/df8bc03e60f81ff081e1895aabe1f519
+  """
+  not_inf = ((x + 1) != x)
+  not_nan = (x == x)
+  return not_inf & not_nan
+
+
 def torch_calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
   """Pytorch implementation of the Frechet Distance.
   Taken from https://github.com/bioinf-jku/TTUR
@@ -225,7 +237,13 @@ def torch_calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
 
   diff = mu1 - mu2
   # Run 50 itrs of newton-schulz to get the matrix sqrt of sigma1 dot sigma2
-  covmean = sqrt_newton_schulz(sigma1.mm(sigma2).unsqueeze(0), 50).squeeze()  
+  covmean = sqrt_newton_schulz(sigma1.mm(sigma2).unsqueeze(0), 50).squeeze()
+  if not isfinite(covmean).all():
+    msg = ('fid calculation produces singular product; '
+           'adding %s to diagonal of cov estimates') % eps
+    print(msg)
+    offset = torch.eye(sigma1.shape[0]) * eps
+    covmean = sqrt_newton_schulz((sigma1 + offset).dot(sigma2 + offset))
   out = (diff.dot(diff) +  torch.trace(sigma1) + torch.trace(sigma2)
          - 2 * torch.trace(covmean))
   return out
