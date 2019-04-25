@@ -1,1 +1,6 @@
+__pycache__/
 .idea/
+data/
+logs/
+sync_batchnorm/
+*.npz

@@ -56,7 +56,7 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
     diff = mu1 - mu2
 
     # Product might be almost singular
-    covmean = sqrt_newton_schulz((sigma1 @ sigma2).unsqueeze(0), 50).squeeze()
+    covmean = sqrt_newton_schulz((sigma1 @ sigma2), 50)
     if not isfinite(covmean).all():
         msg = ('fid calculation produces singular product; '
                'adding %s to diagonal of cov estimates') % eps
