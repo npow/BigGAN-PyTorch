@@ -428,7 +428,10 @@ class G_D(nn.Module):
       D_fake = self.D(G_z, gy)
       if x is not None:
         D_real = self.D(x, dy)
-        return D_fake, D_real
+        if return_G_z:
+          return D_fake, D_real, G_z
+        else:
+          return D_fake, D_real
       else:
         if return_G_z:
           return D_fake, G_z
@@ -442,7 +445,10 @@ class G_D(nn.Module):
       # Get Discriminator output
       D_out = self.D(D_input, D_class)
       if x is not None:
-        return torch.split(D_out, [G_z.shape[0], x.shape[0]]) # D_fake, D_real
+        if return_G_z:
+          return torch.split(D_out, [G_z.shape[0], x.shape[0]]), G_z # D_fake, D_real, G_z
+        else:
+          return torch.split(D_out, [G_z.shape[0], x.shape[0]]) # D_fake, D_real
       else:
         if return_G_z:
           return D_out, G_z

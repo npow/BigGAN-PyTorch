@@ -8,6 +8,7 @@ import os
 
 import utils
 import losses
+from inception_utils_torch import cov, calculate_frechet_distance
 
 
 # Dummy training function for debugging
@@ -36,14 +37,24 @@ def GAN_training_function(G, D, GD, z_, y_, ema, state_dict, config):
       for accumulation_index in range(config['num_D_accumulations']):
         z_.sample_()
         y_.sample_()
-        D_fake, D_real = GD(z_[:config['batch_size']], y_[:config['batch_size']], 
-                            x[counter], y[counter], train_G=False, 
-                            split_D=config['split_D'])
+        if config['use_fid_loss']:
+          (D_fake, D_real), G_z = GD(z_[:config['batch_size']], y_[:config['batch_size']],
+                                     x[counter], y[counter], train_G=False, return_G_z=True, split_D=config['split_D'])
+          batch_mean = torch.mean(G_z, dim=0)
+          batch_cov = cov(G_z, rowvar=False)
+          true_mean = torch.mean(x[counter], dim=0)
+          true_cov = cov(x[counter], rowvar=False)
+          fid_score = calculate_frechet_distance(batch_mean, batch_cov, true_mean, true_cov)
+        else:
+          D_fake, D_real = GD(z_[:config['batch_size']], y_[:config['batch_size']],
+                              x[counter], y[counter], train_G=False, split_D=config['split_D'])
          
         # Compute components of D's loss, average them, and divide by 
         # the number of gradient accumulations
         D_loss_real, D_loss_fake = losses.discriminator_loss(D_fake, D_real)
         D_loss = (D_loss_real + D_loss_fake) / float(config['num_D_accumulations'])
+        if config['use_fid_loss']:
+          D_loss += config['fid_weight'] * fid_score
         D_loss.backward()
         counter += 1
         

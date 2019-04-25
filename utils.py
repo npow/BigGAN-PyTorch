@@ -125,7 +125,17 @@ def prepare_parser():
     '--norm_style', type=str, default='bn',
     help='Normalizer style for G, one of bn [batchnorm], in [instancenorm], '
          'ln [layernorm], gn [groupnorm] (default: %(default)s)')
-         
+
+  parser.add_argument(
+    '--use_fid_loss', type=bool, default=False,
+    help='Whether to optimize the FID score'
+  )
+
+  parser.add_argument(
+    '--fid_weight', type=float, default=0.1,
+    help='Weight of the FID penalty'
+  )
+
   ### Model init stuff ###
   parser.add_argument(
     '--seed', type=int, default=0,
