@@ -243,7 +243,7 @@ def torch_calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
     msg = ('fid calculation produces singular product; '
            'adding %s to diagonal of cov estimates') % eps
     print(msg)
-    offset = torch.eye(sigma1.shape[0]) * eps
+    offset = torch.eye(sigma1.shape[0]).cuda() * eps
     covmean = sqrt_newton_schulz((sigma1 + offset).mm(sigma2 + offset).unsqueeze(0), num_iters).squeeze()
   out = (diff.dot(diff) +  torch.trace(sigma1) + torch.trace(sigma2)
          - 2 * torch.trace(covmean))
