@@ -8,7 +8,7 @@ import os
 
 import utils
 import losses
-from inception_utils_torch import cov, calculate_frechet_distance
+from inception_utils import torch_cov, torch_calculate_frechet_distance
 
 
 # Dummy training function for debugging
@@ -42,10 +42,10 @@ def GAN_training_function(G, D, GD, z_, y_, ema, state_dict, config):
                                                          x[counter], y[counter], train_G=False,
                                                          return_G_z=True, split_D=config['split_D'])
           fake_mean = torch.mean(fake_hid, dim=0)
-          fake_cov = cov(fake_hid, rowvar=False)
+          fake_cov = torch_cov(fake_hid, rowvar=False)
           real_mean = torch.mean(x[counter], dim=0)
-          real_cov = cov(x[counter], rowvar=False)
-          fid_score = calculate_frechet_distance(fake_mean, fake_cov, real_mean, real_cov)
+          real_cov = torch_cov(x[counter], rowvar=False)
+          fid_score = torch_calculate_frechet_distance(fake_mean, fake_cov, real_mean, real_cov)
         else:
           D_fake, D_real = GD(z_[:config['batch_size']], y_[:config['batch_size']],
                               x[counter], y[counter], train_G=False, split_D=config['split_D'])
