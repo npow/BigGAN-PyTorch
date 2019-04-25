@@ -38,13 +38,14 @@ def GAN_training_function(G, D, GD, z_, y_, ema, state_dict, config):
         z_.sample_()
         y_.sample_()
         if config['use_fid_loss']:
-          (D_fake, D_real), G_z = GD(z_[:config['batch_size']], y_[:config['batch_size']],
-                                     x[counter], y[counter], train_G=False, return_G_z=True, split_D=config['split_D'])
-          batch_mean = torch.mean(G_z, dim=0)
-          batch_cov = cov(G_z, rowvar=False)
-          true_mean = torch.mean(x[counter], dim=0)
-          true_cov = cov(x[counter], rowvar=False)
-          fid_score = calculate_frechet_distance(batch_mean, batch_cov, true_mean, true_cov)
+          (D_fake, D_real), G_z, fake_hid, real_hid = GD(z_[:config['batch_size']], y_[:config['batch_size']],
+                                                         x[counter], y[counter], train_G=False,
+                                                         return_G_z=True, split_D=config['split_D'])
+          fake_mean = torch.mean(fake_hid, dim=0)
+          fake_cov = cov(fake_hid, rowvar=False)
+          real_mean = torch.mean(x[counter], dim=0)
+          real_cov = cov(x[counter], rowvar=False)
+          fid_score = calculate_frechet_distance(fake_mean, fake_cov, real_mean, real_cov)
         else:
           D_fake, D_real = GD(z_[:config['batch_size']], y_[:config['batch_size']],
                               x[counter], y[counter], train_G=False, split_D=config['split_D'])

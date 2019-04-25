@@ -388,7 +388,7 @@ class Discriminator(nn.Module):
         self.param_count += sum([p.data.nelement() for p in module.parameters()])
     print('Param count for D''s initialized parameters: %d' % self.param_count)
 
-  def forward(self, x, y=None):
+  def forward(self, x, y=None, return_hid=False):
     # Stick x into h for cleaner for loops without flow control
     h = x
     # Loop over blocks
@@ -400,8 +400,11 @@ class Discriminator(nn.Module):
     # Get initial class-unconditional output
     out = self.linear(h)
     # Get projection of final featureset onto class vectors and add to evidence
-    out = out + torch.sum(self.embed(y) * h, 1, keepdim=True)
-    return out
+    retval = out + torch.sum(self.embed(y) * h, 1, keepdim=True)
+    if return_hid:
+      return retval, out
+    else:
+      return retval
 
 # Parallelized G_D to minimize cross-gpu communication
 # Without this, Generator outputs would get all-gathered and then rebroadcast.
@@ -425,18 +428,15 @@ class G_D(nn.Module):
     # Split_D means to run D once with real data and once with fake,
     # rather than concatenating along the batch dimension.
     if split_D:
-      D_fake = self.D(G_z, gy)
+      D_fake, fake_hid = self.D(G_z, gy, return_hid=True)
       if x is not None:
-        D_real = self.D(x, dy)
+        D_real, real_hid = self.D(x, dy, return_hid=True)
         if return_G_z:
-          return D_fake, D_real, G_z
+          return D_fake, D_real, G_z, fake_hid, real_hid
         else:
           return D_fake, D_real
       else:
-        if return_G_z:
-          return D_fake, G_z
-        else:
-          return D_fake
+        return D_fake
     # If real data is provided, concatenate it with the Generator's output
     # along the batch dimension for improved efficiency.
     else:
