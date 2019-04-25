@@ -236,14 +236,15 @@ def torch_calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
     'Training and test covariances have different dimensions'
 
   diff = mu1 - mu2
-  # Run 50 itrs of newton-schulz to get the matrix sqrt of sigma1 dot sigma2
-  covmean = sqrt_newton_schulz(sigma1.mm(sigma2).unsqueeze(0), 50).squeeze()
+  # Run 25 itrs of newton-schulz to get the matrix sqrt of sigma1 dot sigma2
+  num_iters = 25
+  covmean = sqrt_newton_schulz(sigma1.mm(sigma2).unsqueeze(0), num_iters).squeeze()
   if not isfinite(covmean).all():
     msg = ('fid calculation produces singular product; '
            'adding %s to diagonal of cov estimates') % eps
     print(msg)
     offset = torch.eye(sigma1.shape[0]) * eps
-    covmean = sqrt_newton_schulz((sigma1 + offset).dot(sigma2 + offset))
+    covmean = sqrt_newton_schulz((sigma1 + offset).mm(sigma2 + offset).unsqueeze(0), num_iters).squeeze()
   out = (diff.dot(diff) +  torch.trace(sigma1) + torch.trace(sigma2)
          - 2 * torch.trace(covmean))
   return out
