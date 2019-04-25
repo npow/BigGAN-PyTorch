@@ -398,11 +398,11 @@ class Discriminator(nn.Module):
     # Apply global sum pooling as in SN-GAN
     h = torch.sum(self.activation(h), [2, 3])
     # Get initial class-unconditional output
-    out = self.linear(h)
+    retval = self.linear(h)
     # Get projection of final featureset onto class vectors and add to evidence
-    retval = out + torch.sum(self.embed(y) * h, 1, keepdim=True)
+    retval = retval + torch.sum(self.embed(y) * h, 1, keepdim=True)
     if return_hid:
-      return retval, out
+      return retval, h
     else:
       return retval
 
@@ -427,6 +427,7 @@ class G_D(nn.Module):
         G_z = G_z.half()
     # Split_D means to run D once with real data and once with fake,
     # rather than concatenating along the batch dimension.
+    assert(split_D)
     if split_D:
       D_fake, fake_hid = self.D(G_z, gy, return_hid=True)
       if x is not None:
