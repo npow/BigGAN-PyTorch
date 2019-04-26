@@ -37,22 +37,12 @@ def GAN_training_function(G, D, GD, z_, y_, ema, state_dict, config):
       for accumulation_index in range(config['num_D_accumulations']):
         z_.sample_()
         y_.sample_()
-        if config['use_fid_loss']:
-          D_fake, D_real, G_z, fake_hid, real_hid = GD(z_[:config['batch_size']], y_[:config['batch_size']], x[counter], y[counter], train_G=False, return_G_z=True, split_D=True)
-          fake_mean = torch.mean(fake_hid, dim=0)
-          fake_cov = torch_cov(fake_hid, rowvar=False)
-          real_mean = torch.mean(real_hid, dim=0)
-          real_cov = torch_cov(real_hid, rowvar=False)
-          fid_score = torch_calculate_frechet_distance(fake_mean, fake_cov, real_mean, real_cov)
-        else:
-          D_fake, D_real = GD(z_[:config['batch_size']], y_[:config['batch_size']], x[counter], y[counter], train_G=False, split_D=True)
+        D_fake, D_real = GD(z_[:config['batch_size']], y_[:config['batch_size']], x[counter], y[counter], train_G=False, split_D=True)
          
         # Compute components of D's loss, average them, and divide by 
         # the number of gradient accumulations
         D_loss_real, D_loss_fake = losses.discriminator_loss(D_fake, D_real)
         D_loss = (D_loss_real + D_loss_fake) / float(config['num_D_accumulations'])
-        if config['use_fid_loss']:
-          D_loss += config['fid_weight'] * fid_score
         D_loss.backward()
         counter += 1
         
@@ -71,14 +61,27 @@ def GAN_training_function(G, D, GD, z_, y_, ema, state_dict, config):
       
     # Zero G's gradients by default before training G, for safety
     G.optim.zero_grad()
-    
+
+    counter = 0
     # If accumulating gradients, loop multiple times
     for accumulation_index in range(config['num_G_accumulations']):    
       z_.sample_()
       y_.sample_()
-      D_fake = GD(z_, y_, train_G=True, split_D=config['split_D'])
-      G_loss = losses.generator_loss(D_fake) / float(config['num_G_accumulations'])
+      if config['use_fid_loss']:
+        D_fake, D_real, G_z, fake_hid, real_hid = GD(z_, y_, x[counter], y[counter], train_G=True, return_G_z=True, split_D=True)
+        fake_mean = torch.mean(fake_hid, dim=0)
+        fake_cov = torch_cov(fake_hid, rowvar=False)
+        real_mean = torch.mean(real_hid, dim=0)
+        real_cov = torch_cov(real_hid, rowvar=False)
+        fid_score = torch_calculate_frechet_distance(fake_mean, fake_cov, real_mean, real_cov)
+        FID_loss = config['fid_weight'] * fid_score
+      else:
+        D_fake = GD(z_, y_, x[counter], y[counter], train_G=True, return_G_z=True, split_D=False)
+        FID_loss = torch.Tensor(0).cuda()
+      G_loss = losses.generator_loss(D_fake)
+      G_loss = (G_loss + FID_loss) / float(config['num_G_accumulations'])
       G_loss.backward()
+      counter += 1
     
     # Optionally apply modified ortho reg in G
     if config['G_ortho'] > 0.0:
