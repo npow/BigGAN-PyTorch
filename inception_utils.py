@@ -128,11 +128,15 @@ class MatrixSquareRoot(Function):
   """
 
   @staticmethod
-  def forward(ctx, input):
-    input = input.detach()
+  def forward(ctx, input, eps=1e-6):
+    input = input.detach().cpu()
     m = input.numpy().astype(np.float_)
+    sqrtm = linalg.sqrtm(m).real
+    if not np.isfinite(sqrtm).all():
+      offset = np.eye(m.shape[0]) * eps
+      sqrtm = linalg.sqrtm(m + offset).real
 
-    sqrtm = torch.from_numpy(linalg.sqrtm(m).real).type_as(input)
+    sqrtm = torch.from_numpy(sqrtm).type_as(input)
     ctx.save_for_backward(sqrtm)
     return sqrtm
 
@@ -150,7 +154,7 @@ class MatrixSquareRoot(Function):
       # dX = (d(X^{1/2})X^{1/2} + X^{1/2}(dX^{1/2}).
       grad_sqrtm = linalg.solve_sylvester(sqrtm, sqrtm, gm)
 
-      grad_input = torch.from_numpy(grad_sqrtm).type_as(grad_output.data)
+      grad_input = torch.from_numpy(grad_sqrtm).type_as(grad_output.data).cuda()
     return Variable(grad_input)
 
 torch_sqrtm = MatrixSquareRoot.apply
@@ -273,7 +277,7 @@ def torch_calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
     'Training and test covariances have different dimensions'
 
   diff = mu1 - mu2
-  covmean = torch_sqrtm(sigma1.mm(sigma2).unsqueeze(0)).squeeze()
+  covmean = torch_sqrtm(sigma1.mm(sigma2)).cuda()
   out = (diff.dot(diff) +  torch.trace(sigma1) + torch.trace(sigma2)
          - 2 * torch.trace(covmean))
   return out
