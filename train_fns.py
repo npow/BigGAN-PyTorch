@@ -37,12 +37,22 @@ def GAN_training_function(G, D, GD, z_, y_, ema, state_dict, config):
       for accumulation_index in range(config['num_D_accumulations']):
         z_.sample_()
         y_.sample_()
-        D_fake, D_real = GD(z_[:config['batch_size']], y_[:config['batch_size']], x[counter], y[counter], train_G=False, split_D=True)
-         
+        if config['use_fid_loss']:
+            D_fake, D_real, G_z, fake_hid, real_hid = GD(z_, y_, x[counter], y[counter], train_G=False, return_G_z=True, split_D=True)
+            fake_mean = torch.mean(fake_hid, dim=0)
+            fake_cov = torch_cov(fake_hid, rowvar=False)
+            real_mean = torch.mean(real_hid, dim=0)
+            real_cov = torch_cov(real_hid, rowvar=False)
+            fid_score = torch_calculate_frechet_distance(fake_mean, fake_cov, real_mean, real_cov)
+            FID_loss = config['fid_weight'] * torch.clamp(fid_score, min=0, max=200)
+        else:
+          D_fake, D_real = GD(z_[:config['batch_size']], y_[:config['batch_size']], x[counter], y[counter], train_G=False, split_D=True)
+          FID_loss = torch.Tensor(0).cuda()
+
         # Compute components of D's loss, average them, and divide by 
         # the number of gradient accumulations
         D_loss_real, D_loss_fake = losses.discriminator_loss(D_fake, D_real)
-        D_loss = (D_loss_real + D_loss_fake) / float(config['num_D_accumulations'])
+        D_loss = (D_loss_real + D_loss_fake - FID_loss) / float(config['num_D_accumulations'])
         D_loss.backward()
         counter += 1
         
