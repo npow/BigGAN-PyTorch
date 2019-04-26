@@ -74,7 +74,7 @@ def GAN_training_function(G, D, GD, z_, y_, ema, state_dict, config):
         real_mean = torch.mean(real_hid, dim=0)
         real_cov = torch_cov(real_hid, rowvar=False)
         fid_score = torch_calculate_frechet_distance(fake_mean, fake_cov, real_mean, real_cov)
-        FID_loss = config['fid_weight'] * fid_score
+        FID_loss = config['fid_weight'] * torch.clamp(fid_score, min=0, max=200)
       else:
         D_fake = GD(z_, y_, x[counter], y[counter], train_G=True, return_G_z=True, split_D=False)
         FID_loss = torch.Tensor(0).cuda()
